@@ -1,0 +1,192 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "1773bcac-b92e-400d-bcd4-d9fd6123a97d",
+   "metadata": {},
+   "source": [
+    "Compute expected waiting time of M/M/1 using Formula"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "1b6c678f-5dc2-45d3-ad94-32078c3a2068",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Expected waiting time (formula): 0.05 hours\n"
+     ]
+    }
+   ],
+   "source": [
+    "arrival_rate = 10  # customers/hour\n",
+    "service_rate = 20  # customers/hour\n",
+    "\n",
+    "utilization = arrival_rate / service_rate\n",
+    "expected_waiting_time = utilization / (service_rate * (1 - utilization))\n",
+    "print(f\"Expected waiting time (formula): {expected_waiting_time} hours\")\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9dcfc793-b53a-4af3-852f-9fbc02ebee94",
+   "metadata": {},
+   "source": [
+    "Compute expected waiting time of M/M/1 using DES without explicit clock time"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "38b32d66-c7f9-43ef-b825-c872b7b10572",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Expected waiting time (DES without clock): 2.8871574137054186 minutes\n"
+     ]
+    }
+   ],
+   "source": [
+    "import random\n",
+    "\n",
+    "arrival_rate = 10 / 60  # per minute\n",
+    "service_rate = 20 / 60  # per minute\n",
+    "\n",
+    "num_customers = 20000\n",
+    "inter_arrival_times = [random.expovariate(arrival_rate) for _ in range(num_customers)]\n",
+    "service_times = [random.expovariate(service_rate) for _ in range(num_customers)]\n",
+    "\n",
+    "start_service = [0] * num_customers\n",
+    "waiting_times = [0] * num_customers\n",
+    "\n",
+    "for i in range(1, num_customers):\n",
+    "    start_service[i] = max(start_service[i - 1] + service_times[i - 1], sum(inter_arrival_times[:i]))\n",
+    "    waiting_times[i] = start_service[i] - sum(inter_arrival_times[:i])\n",
+    "\n",
+    "expected_waiting_time = sum(waiting_times) / num_customers\n",
+    "print(f\"Expected waiting time (DES without clock): {expected_waiting_time} minutes\")\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "312441b3-1b87-4aa7-bb80-3ab8f8bd8724",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "Compute expected waiting time of M/M/1 using DES explicit clock time"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "3f93b7e2-ce34-4755-86c3-a1493701101c",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Expected waiting time (DES with clock, arrival and departure stored): 2.84 minutes\n"
+     ]
+    }
+   ],
+   "source": [
+    "import heapq\n",
+    "import random\n",
+    "\n",
+    "# Parameters\n",
+    "arrival_rate = 10 / 60  # 10 arrivals per hour, converted to per minute\n",
+    "service_rate = 20 / 60  # 20 services per hour, converted to per minute\n",
+    "num_customers = 20000  # Total number of customers to simulate, you can set different stopping conditions\n",
+    "\n",
+    "# Initialize simulation variables\n",
+    "clock = 0  # Current simulation time\n",
+    "# Min-heap for events (time, event_type, arrival_time), this includes the events in event list;\n",
+    "# their remaining lifetimes are updated by time-arrival_time\n",
+    "event_queue = []  \n",
+    "waiting_times = []  # List to record individual waiting times\n",
+    "last_departure_time = 0  # Tracks the last scheduled departure time\n",
+    "\n",
+    "# Schedule the first arrival event\n",
+    "first_arrival_time = random.expovariate(arrival_rate)  # interarrival time is exponential\n",
+    "heapq.heappush(event_queue, (first_arrival_time, \"arrival\", first_arrival_time)) # initially the only event in event list is arrival \n",
+    "\n",
+    "# Start simulation\n",
+    "while len(waiting_times) < num_customers: \n",
+    "    # events in event_queue are ordered chronologically based on the remaining lifetimes, process the next event\n",
+    "    # time advances to the next event time and the next event is removed from event_queue\n",
+    "    clock, event_type, arrival_time = heapq.heappop(event_queue)   \n",
+    "\n",
+    "    # if next event is an arrival, then new arrival/departure events are added to event list\n",
+    "    if event_type == \"arrival\":\n",
+    "        # Customer arrives\n",
+    "        if not event_queue:  # If the server is idle\n",
+    "            service_start_time = clock\n",
+    "        else:  # If the server is busy\n",
+    "            service_start_time = max(last_departure_time, clock)\n",
+    "\n",
+    "        # after an arrival, the event list is updated, \n",
+    "        # a departure event is added. Calculate departure time/remaining lifetime of  this customer\n",
+    "        service_time = random.expovariate(service_rate)\n",
+    "        departure_time = service_start_time + service_time\n",
+    "        heapq.heappush(event_queue, (departure_time, \"departure\", arrival_time))\n",
+    "\n",
+    "        # after an arrival, the next arrival is added to event list\n",
+    "        next_arrival_time = clock + random.expovariate(arrival_rate)\n",
+    "        heapq.heappush(event_queue, (next_arrival_time, \"arrival\", next_arrival_time))\n",
+    "\n",
+    "        # Update the last departure time\n",
+    "        last_departure_time = departure_time\n",
+    "\n",
+    "\n",
+    "    # if the next event is a departure.\n",
+    "    elif event_type == \"departure\":\n",
+    "        # Customer departs\n",
+    "        waiting_time = clock -  arrival_time # Calculate waiting time\n",
+    "        waiting_times.append(waiting_time)  # Store the waiting time\n",
+    "\n",
+    "# Calculate and print the results, the variable \"waiting_times\" includes both the waiting time \n",
+    "# in queue and the time in service, so 3 mins in service time is subtracted\n",
+    "average_waiting_time = sum(waiting_times) / len(waiting_times)-3\n",
+    "print(f\"Expected waiting time (DES with clock, arrival and departure stored): {average_waiting_time:.2f} minutes\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "0f355a55-c382-4b6e-91d1-6b9d5f341c5a",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
